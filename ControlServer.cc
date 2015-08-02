@@ -1,4 +1,6 @@
 
+#include <signal.h>
+#include <unistd.h>
 #include <iostream>
 #include <stdio.h>
 #include <sys/types.h>
@@ -7,11 +9,49 @@
 #include <errno.h>
 #include <poll.h>
 #include <stdlib.h>
+#include <thread>
+#include <time.h>
+#include <sys/time.h>
+
 
 const char* UNIXDOMAIN_PATH = "/usr/local/movieplayer/server.sock";
 
+int server_main(void);
+void exit_program(int signum);
 
-int main(int argc, char *argv[]){
+int endflag = 0;
+
+int main(void){
+    if (signal(SIGINT, exit_program) == SIG_ERR) {
+        fprintf(stderr, "signal handler entry error.");
+        exit(-1);
+    }
+    std::cout<<"handler entry."<<std::endl;
+    std::thread th(server_main);
+    std::cout<<"thread run."<<std::endl;
+    struct timespec wait;
+    wait.tv_sec=0;
+    wait.tv_nsec=100000000L;
+    std::cout<<"main loop.\nendflag:"<< !endflag <<std::endl;
+    while(!endflag){
+        std::cout << "." << std::flush;
+        nanosleep(&wait, NULL);
+    }
+    std::cout<<"join thread."<<std::endl;
+    th.join();
+
+    return 0;
+}
+
+
+void exit_program(int signum){
+    std::cout<<"SIGINT!!"<<std::endl;
+    endflag=1;
+}
+
+
+
+int server_main(void){
 
     int sock, clifd;
     struct sockaddr_un srvaddr, cliaddr;
@@ -44,8 +84,8 @@ int main(int argc, char *argv[]){
     fds[0].fd = sock;
     fds[0].events = POLLIN;
 
-    while(1){
-        poll(fds, 1, -1);
+    while(!endflag){
+        poll(fds, 1, 100);
         if (fds[0].revents & POLLIN) {
             /* sock1からデータを受信して表示します */
             memset(&cliaddr, 0, sizeof(struct sockaddr_un));
@@ -57,13 +97,12 @@ int main(int argc, char *argv[]){
             }
             int len = read(clifd, buf, sizeof(buf));
             buf[len] = 0;
-            std::cout <<  buf << std::endl;
+            std::cout <<  "\n" << buf << std::endl;
         }
     }
 
     close(sock);
 
-    std::cout <<  "Server end." << std::endl;
     return 0;
 }
 
