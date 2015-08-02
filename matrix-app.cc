@@ -83,11 +83,14 @@ int main(int argc, char *argv[]){
         cap >> src_img;
 
         auto pos = cap.get(CV_CAP_PROP_POS_MSEC);
-        cv::resize(src_img, dst_img, dst_img.size(), cv::INTER_AREA);
+        auto r = (double) height / src_img.rows;
+        auto w = (int) (src_img.cols * r);
+        auto d = (width - w) / 2;
+        cv::resize(src_img, dst_img, cv::Size(w, height), cv::INTER_AREA);
         for(int y=0; y<height; y++){
-            for(int x=0; x<width; x++){
+            for(int x=0; x<w; x++){
                 cv::Vec3b bgr = dst_img.at<cv::Vec3b>(y, x);
-                canvas->SetPixel(x, y, bgr[2], bgr[1], bgr[0]);
+                canvas->SetPixel(x + d, y, bgr[2], bgr[1], bgr[0]);
             }
         }
         matrix->SwapOnVSync(canvas);
